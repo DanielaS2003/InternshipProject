@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <h1 class="title">Database</h1>
+    <div id="error" class="error"></div>
+    <div id="weatherInfo" class="weather-info"></div>
+
+    <div class="input-box">
+        <input type="date" id="start_date" placeholder="Enter start date in form YYYY-MM-DD">
+        -<input type="date" id="end_date" placeholder="Enter end date in form YYYY-MM-DD">
+        <br>
+        <input type="text" id="location" placeholder="Enter location">
+        <button id="createWeather">Create data</button>
+    </div>
+
+    <button id="read_record">View all records</button>
+    <div id="recordInfo"></div>
+
+    <div class="input-box">
+        <input type="number" id="weather" placeholder="Enter weather id to delete">
+        <button id="deleteInfo">Delete data</button>
+    </div>
+
+    <div class="input-box">
+        <input type="number" id="weather_id" placeholder="Enter weather id to update">
+        <input type="date" id="start" placeholder="Enter new start date in form YYYY-MM-DD">
+        -<input type="date" id="end" placeholder="Enter new end date in form YYYY-MM-DD">
+        <br>
+        <input type="text" id="location_name" placeholder="Enter new location">
+        <button id="updateInfo">Update data</button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("createWeather").addEventListener("click", async () => {
+    let start_date = document.getElementById("start_date").value.trim();
+    let location =document.getElementById("location").value.trim();
+    let end_date =document.getElementById("end_date").value.trim();
+    let errorDiv= document.getElementById("error");
+    let avgtemp=0.0;
+    errorDiv.textContent = "";
+    console.log(start_date);
+
+    if (!location||!start_date||!end_date){
+        errorDiv.textContent= "Please fill all fields!";
+    }
+    else if(start_date>end_date){
+        errorDiv.textContent= "Invalid dates";
+    }else{
+        (async () => {
+            let avgtemp = 0.0;
+            let counter = 0;
+
+            try {
+                const response = await fetch(`http://api.weatherapi.com/v1/history.json?key=973742f28c5e4a7ab4a05929252701&q=${encodeURIComponent(location)}&dt=${encodeURIComponent(start_date)}&end_dt=${encodeURIComponent(end_date)}`);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch weather data.");
+                }
+
+                const data = await response.json();
+                data.forecast.forecastday.forEach(day => {
+                    avgtemp += day.day.avgtemp_c;
+                    counter += 1;
+                });
+
+                avgtemp = counter > 0 ? avgtemp / counter : 0.0;
+
+                await fetch(`create_record.php?location=${location}&start_date=${start_date}&end_date=${end_date}&temperature=${avgtemp}`);
+            } catch (error) {   
+                errorDiv.textContent = error.message;
+            }
+        })();
+
+    }});
+
+    document.getElementById("read_record").addEventListener("click", async () => {
+        let recordInfo = document.getElementById("recordInfo");
+
+        recordInfo.innerHTML = "";
+
+        fetch(`read_records.php`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    recordInfo.innerHTML = `<p>${data.error}</p>`;
+                } else {
+                    let html=`<table>
+                                    <thead>
+                                    <tr>
+                                        <th>Index of Meeting</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Location</th>
+                                        <th>Temp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;                      
+
+                            data.forEach(data => {
+                            html += `
+                                <tr>
+                                    <td>${data.weather_id}</td>
+                                    <td>${data.start_date}</td>
+                                    <td>${data.end_date}</td>
+                                    <td>${data.location}</td>
+                                    <td>${data.temperature}</td>
+                                </tr>
+                            `;});
+
+                            html += `
+                                </tbody>
+                                </table>`;
+
+                            recordInfo.innerHTML = html;
+
+                    }
+                }
+            )
+            .catch(error => {
+                    console.error('Error:', error);
+                    document.body.innerHTML = '<p>Error loading weather data.</p>';
+                });
+                            
+    });
+
+    document.getElementById("deleteInfo").addEventListener("click", async () => {
+        let weather_id = document.getElementById("weather").value.trim();
+        console.log(weather_id);
+        fetch(`delete_record.php?weather_id=${weather_id}`);
+    });
+
+    document.getElementById("updateInfo").addEventListener("click", async () => {
+    let start_date = document.getElementById("start").value.trim();
+    let location =document.getElementById("location_name").value.trim();
+    let end_date =document.getElementById("end").value.trim();
+    let weather_id=document.getElementById("weather_id").value.trim();
+    let errorDiv= document.getElementById("error");
+    let avgtemp=0.0;
+    
+    errorDiv.textContent = "";
+
+    console.log(start_date,end_date,location,weather_id)
+    //wrong location is validated by the API
+
+    if (!location||!start_date||!end_date||!weather_id){
+        errorDiv.textContent= "Please fill all fields!";
+    }
+    else if(start_date>end_date){
+        errorDiv.textContent= "Invalid dates";
+    }else{
+    (async () => {
+        try {
+            let response=await fetch(`http://api.weatherapi.com/v1/history.json?key=973742f28c5e4a7ab4a05929252701&q=${encodeURIComponent(location)}&dt=${encodeURIComponent(start_date)}&end_dt=${encodeURIComponent(end_date)}`);
+            if (!response.ok){
+                throw new Error("Failed to fetch weather data.");
+            }
+
+            let data = await response.json();
+
+            if (data.error) {
+                throw new Error(`${data.error.message}`);
+            }
+
+            let counter=0;
+
+            data.forecast.forecastday.forEach(day=> {
+                avgtemp+=day.day.avgtemp_c;
+                counter+=1;
+            });
+
+            avgtemp=avgtemp/counter;
+
+            
+            await fetch(`update_record.php?weather_id=${weather_id}&location=${location}&start_date=${start_date}&end_date=${end_date}&temperature=${avgtemp}`)
+
+            } catch (error) {
+                errorDiv.textContent = error.message;
+            }
+        })();
+
+    }});
+  </script>
+
+
+</body>
+</html>

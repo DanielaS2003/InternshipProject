@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <h1 class="title">Forecast</h1>
+    <div id="error" class="error"></div>
+    <div id="weatherInfo" class="weather-info"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const alocation = params.get("location");
+    const errorDiv = document.getElementById("error");
+    const weatherInfoDiv = document.getElementById("weatherInfo");
+
+    errorDiv.textContent = "";
+    weatherInfoDiv.innerHTML = "";
+
+    if (!alocation) {
+        errorDiv.textContent = "Please enter a location!";
+    }
+    
+    (async () => {
+        try {
+            const response = await fetch(`http://api.weatherapi.com/v1/forecast.json?key=973742f28c5e4a7ab4a05929252701&q=${encodeURIComponent(alocation)}&days=5&aqi=no&alerts=no`);
+            if (!response.ok) {
+                throw new Error("Failed to fetch weather data.");
+            }
+
+            const data = await response.json();
+            console.log(data);
+
+            if (data.error) {
+                throw new Error(`${data.error.message}`);
+            }
+
+            weatherInfoDiv.innerHTML = `
+                <h2>Today</h2>
+                <img src="https:${data.current.condition.icon}"/>
+                <p>Temperature: ${data.current.temp_c}°C</p>
+                <p>Feels like: ${data.current.feelslike_c}°C</p>
+                <p>Condition: ${data.current.condition.text}</p>
+                <p>Humidity: ${data.current.humidity}%</p>
+                <p>Wind: ${data.current.gust_kph} kph</p> 
+            `;
+
+            data.forecast.forecastday.forEach(day=> {
+                weatherInfoDiv.innerHTML += `<br>
+                <h2>${day.date}</h2>
+                <img src="https:${day.day.condition.icon}"/>
+                <p>Max Temperature: ${day.day.maxtemp_c}°C</p>
+                <p>Average Temperature: ${day.day.avgtemp_c}°C</p>
+                <p>Condition: ${day.day.condition.text}</p>
+                <p>Chance of rain: ${day.day.daily_chance_of_rain}%</p>
+                <p>Wind: ${day.day.maxwind_kph} kph</p>
+                `
+            });
+            } catch (error) {
+                errorDiv.textContent = error.message;
+            }
+        })();
+    
+
+  </script>
+
+<button id="db">Look at Database</button>
+<script>
+    document.getElementById("db").addEventListener("click", async () => {
+    
+    window.location.href = `db.html`;
+
+    });
+
+
+  </script>
+</body>
+</html>
